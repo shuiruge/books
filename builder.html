@@ -167,24 +167,45 @@
       </div>
       <div class="chunk" name="crawler.py" append-newline="2">
         def crawl_douban(url: str) -> dict:
-            <span class="chunkref">fetch raw html text</span>
-            result = {}
-            <span class="chunkref">parse html and update result</span>
-            return result
+            <span class="chunkref">fetch html text</span>
+            <span class="chunkref">parse html and return result</span>
       </div>
-      <div class="chunk" name="fetch raw html text">
+    </p>
+
+    <h4>Fetch HTML Text</h4>
+    <p>
+      Directly calling <code>requests.get(url)</code> will be blocked. We need
+      to add an user-agent to the headers.
+      <div class="chunk" name="fetch html text">
         headers = {
             'user-agent': (
                 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
                 '(KHTML, like Gecko) Chrome/89.0.4389.82 Safari/537.36'
             ) 
         }
-        html_text = requests.get(url).text
+        response = requests.get(url, headers=headers)
       </div>
-      <div class="chunk" name="parse html and update result">
+      Even with user-agent, we can still be blocked. In this case, we simply
+      raise an error.
+      <div class="chunk" name="fetch html text">
+        if response.status_code != 200:
+            raise Exception('[crawl_douban] failed to fetch html.')
+      </div>
+      The HTML text is in the <code>text</code> attribute of the response.
+      <div class="chunk" name="fetch html text">
+        html_text = response.text
+      </div>
+    </p>
+
+    <h4>Parse HTML</h4>
+    <p>
+      Parsing with BeauifulSoup is straight-forward.
+      <div class="chunk" name="parse html and return result">
         html = BeautifulSoup(html_text, 'html')
       </div>
-      <div class="chunk" name="parse html and update result">
+      To find the information we need, we have to figure out the HTML structure.
+      To do so, we use the developer tools of chrome browser.
+      <div class="chunk" name="parse html and return result">
         info = html.find('div', class_='info')
         TODO
       </div>
