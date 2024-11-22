@@ -1,0 +1,195 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+
+    <meta name="version" content="1.0"/>
+    <meta name="author" content="shuiruge@hotmail.com"/>
+    <meta name="repository" content="https://github.com/shuiruge/books"/>
+
+    <title>Let's Build a Book Store</title>
+
+    <style>
+      body {
+        background-color: #c7edcc;
+        max-width: 700px;
+        margin-left: auto;
+        margin-right: auto;
+        padding: 1em;
+      }
+      span.comment {
+        font-size: 0.8em;
+      }
+     .book {
+       font-style: italic;
+     }
+    </style>
+
+    <!-- literate -->
+    <link rel="stylesheet" type="text/css" href="literate.html/literate.css"/>
+    <script type="text/javascript" src="literate.html/literate.js"></script>
+
+    <script>
+      window.onload = weaveAll;
+    </script>
+  </head>
+
+  <body>
+    <h1>Let's Build a Book Store</h1>
+    <p>
+      We are to build a static website that display the books that I want to
+      share with you. It is named by <strong>The Hitchhiker's Guide to Mind
+      </strong>, inspired by Douglas Adams's novel <span class="book">The
+      Hitchhiker's Guide to the Galaxy</span>.
+    </p>
+
+    <h2 id="motivation">Motivation</h2>
+    <p>
+      It is designed as a book store. Not the modern book store where books are
+      draped in clear plastic sheeting. Readers can only infer the content from
+      its front and back covers. When I was young, I usually stepped into a book
+      store after school. I wandered among the bookshelves, pulling out a book,
+      skimming its content, its language style, and meeting the soul behind the
+      texts. Only then could I determine if I should buy it. So, in addition to
+      listing the books that I preferred, several links are followed, by which
+      you can download a free sample, and read the comments by others who have
+      read it before. It is like a old fashioned books store on the modern
+      internet.
+    </p>
+
+    <h2 id="design">Design of Website</h2>
+
+    <h3>The Main Page</h3>
+    <p>
+      In the main page of the website, there are two chunks sitting in the
+      center: chunk for displaying new books, and for showing the suggested
+      books. On the left hand side is there a sidebar, listing the categories
+      of books. <em>The list is sorted by alphabetic order for facilitating the
+      readers to surf.</em>
+    </p>
+
+    <h3>The Book Page</h3>
+    <p>
+      We build a page for each book. In each page, we show the cover on the
+      upper left of the page, on the right of which we list the basic
+      information of the book such as authers, publisher, and edition.
+    </p>
+    <p>
+      As it is said in <a href="#motivation">previous</a>, we add several links
+      just below the basic information. Links from which you can download a free
+      sample (such as annas-archive or zlibrary). A link from which you can read
+      others' comments (such as douban or goodreads).
+    </p>
+    <p>
+      Under all these, we may append several comments written by myself, including
+      the reason why I like this book, and why you may like it too.
+    </p>
+
+    <h2>Implementation of Website</h2>
+    <p>
+      In this section, we write a builder that builds the whole website from
+      raw data. we will appoint the data structure of books. And write a parser
+      that converts the raw data into webpages.
+    </p>
+
+    <h3>Data Structure of Book</h3>
+    <p>
+      We use JSON to store the books, just because it is strict, readable, and
+      most importantly, extensible. In the early stage, we cannot fully determine
+      which information should be included for a book. And a rigid data structure
+      such as table (I mean the table in database like MySQL) will make it hard
+      to be extended. So, we assign a JSON file for each book, named by its ISBN,
+      the unique ID of the book. Thus, a typical file is
+      <code>9780201021158.json</code>.
+    </p>
+    <p>
+      Although it cannot be determined now, I still list some of the information
+      that shall be included, the very basic ones.
+      <ul>
+        <li>Book Name</li>
+        <li>Author(s)</li>
+        <li>Publisher</li>
+        <li>Publishing Year</li>
+        <li>Edition</li>
+        <li>ISBN (the unique ID of the book)</li>
+        <li>Category(s)</li>
+      </ul>
+    </p>
+    <p>
+      Notice that category is essential, since in <a href="#design">previous</a>,
+      we have designed a sidebar for categories. A book may be referred to
+      multiple categories. For example, the books of W. G. Sebald cannot be
+      properly categorized.
+    </p>
+    <p>
+      It is hard to input these information for every book. So, we have to write
+      a script to automatically create a JSON file for a book and then fulfills
+      the information by itself. Namely, a crawler that fetches information from
+      internet (such as douban, amazon, and goodreads), as long as you provide
+      the link to the book.
+    </p>
+
+    <h3>Develop Environment</h3>
+    <p>
+      To determine which tools are employed for our purpose, I think the first
+      version shall be made simple. So, we use Python. We are to write two
+      scripts, one for crawling basic book information, and the other for
+      building each webpage. Thus, we need modules for crawling, which I think
+      <code>requests</code> has been sufficient, and for parsing HTML, for which
+      employ <code>beautifulsoup</code> (or <code>bs4</code>). So, we have the
+      following Nix-shell configuration.
+      <div class="chunk" name="shell.nix">
+        with import &lt;nixpkgs&gt; { };
+        let
+          pythonPackages = python3Packages;
+        in pkgs.mkShell rec {
+          name = "booksEnv";
+          buildInputs = [
+            pythonPackages.python
+            pythonPackages.requests
+            pythonPackages.beautifulsoup4
+          ];
+        }
+      </div>
+      We will not explain this configuration further, just accept it, save it
+      to <code>shell.nix</code> in the current folder, and run
+      <code>nix-shell</code> in command line.
+    </p>
+
+    <h3>Crawler</h3>
+    <p>
+      In the first version, we only crawl information from douban. It has been
+      sufficient.
+      <div class="chunk" name="crawler.py" append-newline="2">
+        import requests
+        from bs4 import BeautifulSoup
+      </div>
+      <div class="chunk" name="crawler.py" append-newline="2">
+        def crawl_douban(url: str) -> dict:
+            <span class="chunkref">fetch raw html text</span>
+            result = {}
+            <span class="chunkref">parse html and update result</span>
+            return result
+      </div>
+      <div class="chunk" name="fetch raw html text">
+        headers = {
+            'user-agent': (
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+                '(KHTML, like Gecko) Chrome/89.0.4389.82 Safari/537.36'
+            ) 
+        }
+        html_text = requests.get(url).text
+      </div>
+      <div class="chunk" name="parse html and update result">
+        html = BeautifulSoup(html_text, 'html')
+      </div>
+      <div class="chunk" name="parse html and update result">
+        info = html.find('div', class_='info')
+        TODO
+      </div>
+    </p>
+
+
+  </body>
+</html>
